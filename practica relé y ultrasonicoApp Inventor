@@ -1,0 +1,88 @@
+#include "BluetoothSerial.h"
+
+BluetoothSerial SerialBT;
+
+// Pines
+const int trigPin = 5;
+const int echoPin = 18;
+const int relePin = 23;
+
+// Variables
+unsigned long tiempoAnterior = 0;
+const int intervalo = 200;
+
+float distancia = 0;
+bool sistemaActivo = true;
+
+// ===== FUNCIÓN PARA MEDIR DISTANCIA =====
+float medirDistancia() {
+
+  long duracion;
+
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  duracion = pulseIn(echoPin, HIGH, 30000);
+
+  if (duracion == 0) return -1;
+
+  return duracion * 0.034 / 2;
+}
+
+// ===== SETUP =====
+void setup() {
+
+  Serial.begin(115200);
+  SerialBT.begin("ESP32_AUTO");
+
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+
+  pinMode(relePin, OUTPUT);
+
+  // Relé apagado al iniciar
+  digitalWrite(relePin, HIGH);
+}
+
+// ===== LOOP =====
+void loop() {
+
+  // Lectura cada cierto tiempo
+  if (millis() - tiempoAnterior >= intervalo) {
+
+    tiempoAnterior = millis();
+
+    float nuevaDistancia = medirDistancia();
+
+    if (nuevaDistancia > 0 && nuevaDistancia < 400) {
+
+      distancia = nuevaDistancia;
+
+      Serial.print("Distancia: ");
+      Serial.print(distancia);
+      Serial.println(" cm");
+
+      SerialBT.print("Distancia: ");
+      SerialBT.print(distancia);
+      SerialBT.println(" cm");
+
+      // ===== CONTROL DEL FOCO =====
+      // Si detecta algo a 10 cm o menos → enciende
+
+      if (distancia <= 10) {
+
+        digitalWrite(relePin, LOW); // ENCIENDE FOCO
+        Serial.println("FOCO ENCENDIDO");
+
+      } else {
+
+        digitalWrite(relePin, HIGH); // APAGA FOCO
+        Serial.println("FOCO APAGADO");
+      }
+    }
+  }
+}
